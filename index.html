@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AL-BATOUL Luxury Care</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --barca-blue: #001d3d; /* أزرق داكن فخم */
+            --barca-red: #a50044;
+            --gold: #edbb00;
+            --bg: #f4f4f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; background: var(--bg); color: #333;
+            padding-bottom: 70px;
+        }
+
+        /* الهيدر */
+        header {
+            background: var(--barca-blue);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 3px solid var(--barca-red);
+            position: sticky; top: 0; z-index: 1000;
+        }
+
+        /* قسم العروض */
+        .offers-banner {
+            background: linear-gradient(45deg, var(--barca-red), #ff4d4d);
+            color: white; padding: 10px; text-align: center;
+            font-weight: bold; font-size: 14px; overflow: hidden;
+        }
+
+        /* قائمة المنتجات (أسلوب الهاتف) */
+        .container { padding: 10px; }
+        .product-list { display: flex; flex-direction: column; gap: 12px; }
+        
+        .product-item {
+            background: white; border-radius: 15px;
+            display: flex; align-items: center; padding: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .product-img {
+            width: 80px; height: 80px; border-radius: 10px;
+            object-fit: cover; background: #eee;
+        }
+
+        .product-details { flex: 1; padding: 0 15px; }
+        .product-name { font-weight: bold; font-size: 16px; margin: 0; }
+        .product-price { color: var(--barca-red); font-size: 14px; font-weight: 900; margin-top: 5px; }
+
+        .actions-box { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        
+        .btn-cart {
+            background: var(--barca-blue); color: white; border: none;
+            padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer;
+        }
+
+        .btn-like { background: none; border: none; color: #ccc; font-size: 18px; cursor: pointer; transition: 0.3s; }
+        .btn-like.active { color: var(--barca-red); }
+
+        /* شريط سفلي للزوار والمعلومات */
+        .footer-info {
+            background: white; padding: 20px; border-top: 1px solid #ddd;
+            text-align: center; font-size: 13px; line-height: 1.8;
+        }
+
+        .visitor-counter {
+            background: var(--barca-blue); color: var(--gold);
+            display: inline-block; padding: 5px 15px; border-radius: 20px;
+            font-weight: bold; margin-bottom: 15px;
+        }
+
+        /* لوحة التحكم (مودال) */
+        .admin-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 2000; display: none; padding: 20px;
+            box-sizing: border-box; overflow-y: auto;
+        }
+
+        .admin-item-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-bottom: 1px solid #eee;
+        }
+
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; }
+        .primary-btn { background: var(--barca-blue); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size: 20px; font-weight: 900; letter-spacing: 1px;">AL-BATOUL</div>
+    <div style="font-size: 10px; color: var(--gold);">PREMIUM HOME CARE</div>
+    <i class="fas fa-user-shield" onclick="openAdmin()" style="position:absolute; left:15px; top:20px; cursor:pointer;"></i>
+</header>
+
+<div class="offers-banner" id="offers-area">
+    🔥 عرض خاص: خصم 10% على جميع المنظفات السائلة اليوم!
+</div>
+
+<div class="container">
+    <div class="product-list" id="product-list-ui">
+        </div>
+</div>
+
+<div class="footer-info">
+    <div class="visitor-counter">
+        عدد الزوار: <span id="v-count">2060</span>
+    </div>
+    <div>
+        <i class="fas fa-map-marker-alt"></i> الموقع: [أدخل موقع المحل هنا] <br>
+        <i class="fab fa-whatsapp"></i> تواصل: 01030495245 <br>
+        <i class="fas fa-globe"></i> الرابط: albatoul-store.com
+    </div>
+</div>
+
+<div id="admin-panel" class="admin-modal">
+    <div style="display:flex; justify-content: space-between; align-items: center;">
+        <h2>لوحة إدارة البتول</h2>
+        <button onclick="closeAdmin()" style="border:none; background:none; color:red; font-size:20px;">&times;</button>
+    </div>
+    
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <h3>إضافة منتج جديد</h3>
+        <input type="text" id="p-name" placeholder="اسم المنتج">
+        <input type="number" id="p-price" placeholder="السعر">
+        <input type="file" id="p-file" accept="image/*" onchange="handleImg(this)">
+        <button class="primary-btn" onclick="addNewProduct()">إضافة للمتجر</button>
+    </div>
+
+    <h3>التحكم في المنتجات الحالية</h3>
+    <div id="admin-items-list"></div>
+</div>
+
+<script>
+    // Firebase Setup
+    const firebaseConfig = { databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentImg = "";
+    const ADMIN_PASS = "Batoul@Admin#2026";
+
+    // 1. نظام عداد الزوار
+    const visitorRef = db.ref('visitor_count');
+    visitorRef.transaction((current) => {
+        return (current || 2060) + 1;
+    });
+    visitorRef.on('value', (s) => document.getElementById('v-count').innerText = s.val());
+
+    // 2. جلب وعرض المنتجات
+    db.ref('products').on('value', (snapshot) => {
+        const ui = document.getElementById('product-list-ui');
+        const adminUi = document.getElementById('admin-items-list');
+        ui.innerHTML = "";
+        adminUi.innerHTML = "";
+        
+        snapshot.forEach((child) => {
+            const p = child.val();
+            const key = child.key;
+
+            // عرض المستخدم
+            ui.innerHTML += `
+                <div class="product-item">
+                    <img src="${p.img || 'https://via.placeholder.com/80'}" class="product-img">
+                    <div class="product-details">
+                        <p class="product-name">${p.name}</p>
+                        <span class="product-price">${p.price} ج.م</span>
+                    </div>
+                    <div class="actions-box">
+                        <button class="btn-like" onclick="toggleLike(this)"><i class="fas fa-heart"></i></button>
+                        <button class="btn-cart" onclick="addToCart('${p.name}')">إضافة <i class="fas fa-shopping-cart"></i></button>
+                    </div>
+                </div>
+            `;
+
+            // عرض الأدمن (تعديل وحذف)
+            adminUi.innerHTML += `
+                <div class="admin-item-row">
+                    <span>${p.name} (${p.price}ج)</span>
+                    <div>
+                        <button onclick="editPrice('${key}', ${p.price})" style="color:blue; border:none; background:none;">تعديل السعر</button>
+                        <button onclick="deleteItem('${key}')" style="color:red; border:none; background:none; margin-right:10px;">حذف</button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    // 3. وظائف الأدمن
+    function handleImg(input) {
+        const reader = new FileReader();
+        reader.onload = (e) => currentImg = e.target.result;
+        reader.readAsDataURL(input.files[0]);
+    }
+
+    function addNewProduct() {
+        const name = document.getElementById('p-name').value;
+        const price = document.getElementById('p-price').value;
+        if(name && price && currentImg) {
+            db.ref('products').push({ name, price, img: currentImg });
+            alert("تمت الإضافة!");
+            document.getElementById('p-name').value = "";
+        }
+    }
+
+    function deleteItem(key) {
+        if(confirm("هل تريد حذف هذا المنتج نهائياً؟")) db.ref('products').child(key).remove();
+    }
+
+    function editPrice(key, oldPrice) {
+        const newPrice = prompt("أدخل السعر الجديد:", oldPrice);
+        if(newPrice) db.ref('products').child(key).update({ price: newPrice });
+    }
+
+    // 4. وظائف عامة
+    function openAdmin() {
+        if(prompt("كلمة سر الإدارة:") === ADMIN_PASS) 
+            document.getElementById('admin-panel').style.display = 'block';
+    }
+
+    function closeAdmin() { document.getElementById('admin-panel').style.display = 'none'; }
+
+    function toggleLike(btn) { btn.classList.toggle('active'); }
+
+    function addToCart(name) { alert("تمت إضافة " + name + " إلى السلة"); }
+
+</script>
+</body>
+</html>
