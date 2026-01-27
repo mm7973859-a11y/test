@@ -8,72 +8,70 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --main-red: #e63946; --dark: #1d3557; --white: #f1faee; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--white); padding-bottom: 70px; }
-        header { background: var(--main-red); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .container { padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
-        .card { background: white; border-radius: 15px; padding: 10px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border: 1px solid #eee; transition: 0.3s; }
-        .card img { width: 100%; height: 120px; object-fit: contain; border-radius: 10px; }
-        .price { color: var(--main-red); font-weight: bold; font-size: 1.1em; margin: 5px 0; }
-        .add-btn { background: var(--main-red); color: white; border: none; width: 100%; padding: 8px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        :root { --main-red: #e63946; --dark: #1d3557; --white: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--white); padding-bottom: 80px; }
+        header { background: var(--main-red); color: white; padding: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .container { padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+        .card { background: white; border-radius: 15px; padding: 10px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .card img { width: 80px; height: 80px; margin-bottom: 10px; }
+        .price { color: var(--main-red); font-weight: bold; font-size: 1.2em; margin: 5px 0; }
+        .add-btn { background: var(--main-red); color: white; border: none; width: 100%; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; }
         
-        /* السلة */
-        .cart-bar { position: fixed; bottom: 0; width: 100%; background: var(--dark); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; z-index: 2000; cursor: pointer; }
-        .cart-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; display: none; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        /* سلة المشتريات السفلى */
+        .cart-bar { position: fixed; bottom: 0; width: 100%; background: var(--dark); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; cursor: pointer; }
         
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; }
-        .order-btn { background: #25D366; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 10px; }
+        /* نافذة الإدارة */
+        #admin-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 5000; width: 85%; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
         
-        /* لوحة التحكم */
-        #admin-panel { display: none; background: #fff; padding: 20px; border: 2px solid var(--main-red); margin: 10px; border-radius: 10px; }
+        /* زر الإدارة المخفي قليلاً */
+        .admin-trigger { position: fixed; bottom: 70px; left: 10px; background: rgba(0,0,0,0.1); color: transparent; border: none; width: 40px; height: 40px; border-radius: 50%; z-index: 500; }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 4000; display: none; padding: 20px; overflow-y: auto; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1 style="margin:0; font-size: 24px;">محل البتول</h1>
-    <div style="font-size: 12px;">مستلزمات منظفات - 01030495245</div>
+    <h1 style="margin:0;">محل البتول</h1>
+    <p style="margin:5px 0; font-size:14px;">للمنظفات والورقيات | 01030495245</p>
 </header>
-
-<div id="admin-panel">
-    <h3>إضافة منتج جديد</h3>
-    <input type="text" id="p-name" placeholder="اسم المنتج (مثال: صابون سائل)">
-    <input type="number" id="p-price" placeholder="السعر">
-    <button onclick="uploadProduct()" style="background:var(--dark); color:white; padding:10px; width:100%; border:none; border-radius:8px;">نشر للمحل فوراً</button>
-</div>
 
 <div class="container" id="products-list">
     </div>
 
+<button class="admin-trigger" onclick="loginAdmin()">Admin</button>
+
+<div id="admin-panel">
+    <h3 style="color:var(--main-red); margin-top:0;">إضافة منتج جديد</h3>
+    <input type="text" id="p-name" placeholder="اسم المنتج">
+    <input type="number" id="p-price" placeholder="السعر بالجنيه">
+    <button onclick="uploadProduct()" style="background:var(--main-red); color:white; border:none; padding:12px; width:100%; border-radius:8px; font-weight:bold;">نشر المنتج فوراً</button>
+    <button onclick="document.getElementById('admin-panel').style.display='none'" style="background:#eee; border:none; margin-top:10px; width:100%; padding:8px; border-radius:8px;">إلغاء</button>
+</div>
+
 <div class="cart-bar" onclick="showCart()">
-    <span><i class="fas fa-shopping-basket"></i> السلة: <span id="cart-count">0</span></span>
+    <span><i class="fas fa-shopping-basket"></i> السلة (<span id="cart-count">0</span>)</span>
     <span>إتمام الطلب <i class="fas fa-arrow-left"></i></span>
 </div>
 
-<div id="cart-modal" class="cart-modal">
-    <h2 style="color:var(--main-red)">مراجعة طلبك</h2>
+<div id="cart-modal" class="modal">
+    <h2 style="color:var(--main-red)">تفاصيل طلبك</h2>
     <div id="cart-items-display"></div>
-    <h3 id="total-price" style="text-align: left;"></h3>
-    <hr>
-    <input type="text" id="u-name" placeholder="الاسم">
-    <input type="tel" id="u-phone" placeholder="رقم الموبايل">
+    <h3 id="total-price" style="text-align: left; background: #fff1f2; padding: 10px;"></h3>
+    <input type="text" id="u-name" placeholder="اسمك">
+    <input type="tel" id="u-phone" placeholder="رقم موبايلك">
     <input type="text" id="u-address" placeholder="عنوانك بالتفصيل">
-    <select id="u-deliv">
-        <option value="توصيل للمنزل">دليفري (توصيل)</option>
-        <option value="استلام من المحل">استلام من المحل</option>
+    <select id="u-deliv" style="width:100%; padding:12px; margin:10px 0; border-radius:8px;">
+        <option value="توصيل">توصيل للمنزل</option>
+        <option value="استلام">استلام من المحل</option>
     </select>
-    <select id="u-pay">
-        <option value="كاش">كاش عند الاستلام</option>
-        <option value="فودافون كاش">فودافون كاش</option>
-    </select>
-    <button class="order-btn" onclick="sendToWhatsApp()">إرسال الطلب للواتساب</button>
-    <button onclick="closeCart()" style="width:100%; background:#eee; border:none; padding:10px; margin-top:10px;">رجوع للمتجر</button>
+    <button onclick="sendToWhatsApp()" style="background:#25D366; color:white; border:none; padding:15px; width:100%; border-radius:10px; font-size:18px; font-weight:bold;">إرسال للواتساب</button>
+    <button onclick="closeCart()" style="width:100%; background:#eee; border:none; padding:10px; margin-top:10px; border-radius:8px;">إغلاق</button>
 </div>
 
-<button onclick="loginAdmin()" style="position:fixed; top:10px; right:10px; opacity:0; width:50px; height:50px;">Admin</button>
-
 <script>
-    // إعدادات Firebase الخاصة بمشروعك (testy)
+    // ربط قاعدة بياناتك (testy)
     const firebaseConfig = {
         databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com"
     };
@@ -82,36 +80,41 @@
 
     let cart = [];
 
-    // قراءة المنتجات من قاعدة البيانات
+    // جلب المنتجات
     db.ref('products').on('value', (snapshot) => {
-        const productsList = document.getElementById('products-list');
-        productsList.innerHTML = "";
-        const data = snapshot.val();
-        for (let key in data) {
-            productsList.innerHTML += `
+        const list = document.getElementById('products-list');
+        list.innerHTML = "";
+        snapshot.forEach((child) => {
+            const p = child.val();
+            list.innerHTML += `
                 <div class="card">
                     <img src="https://img.icons8.com/fluency/96/cleaning-products.png">
-                    <h4>${data[key].name}</h4>
-                    <div class="price">${data[key].price} ج.م</div>
-                    <button class="add-btn" onclick="addToCart('${data[key].name}', ${data[key].price})">أضف للسلة</button>
+                    <h4>${p.name}</h4>
+                    <div class="price">${p.price} ج.م</div>
+                    <button class="add-btn" onclick="addToCart('${p.name}', ${p.price})">أضف للسلة</button>
                 </div>`;
-        }
+        });
     });
+
+    function loginAdmin() {
+        const pass = prompt("أدخل كلمة مرور المدير:");
+        if(pass === "1234") {
+            document.getElementById('admin-panel').style.display = 'block';
+        } else {
+            alert("كلمة سر خاطئة");
+        }
+    }
 
     function uploadProduct() {
         const name = document.getElementById('p-name').value;
         const price = document.getElementById('p-price').value;
         if(name && price) {
             db.ref('products').push({ name, price: parseInt(price) });
-            alert("تمت الإضافة بنجاح!");
+            alert("تمت الإضافة!");
             document.getElementById('p-name').value = "";
             document.getElementById('p-price').value = "";
+            document.getElementById('admin-panel').style.display = 'none';
         }
-    }
-
-    function loginAdmin() {
-        const p = prompt("كلمة السر:");
-        if(p === "1234") document.getElementById('admin-panel').style.display = 'block';
     }
 
     function addToCart(name, price) {
@@ -123,7 +126,7 @@
         if(cart.length === 0) return alert("السلة فارغة");
         document.getElementById('cart-modal').style.display = 'block';
         const display = document.getElementById('cart-items-display');
-        display.innerHTML = cart.map(item => `<div style="display:flex; justify-content:space-between"><span>${item.name}</span><span>${item.price} ج</span></div>`).join('');
+        display.innerHTML = cart.map(i => `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;"><span>${i.name}</span><span>${i.price} ج</span></div>`).join('');
         const total = cart.reduce((a, b) => a + b.price, 0);
         document.getElementById('total-price').innerText = "الإجمالي: " + total + " ج.م";
     }
@@ -133,16 +136,12 @@
     function sendToWhatsApp() {
         const name = document.getElementById('u-name').value;
         const phone = document.getElementById('u-phone').value;
-        const addr = document.getElementById('u-address').value;
-        const deliv = document.getElementById('u-deliv').value;
-        const pay = document.getElementById('u-pay').value;
-
-        if(!name || !phone) return alert("يرجى إدخال الاسم ورقم الموبايل");
-
-        let msg = `*طلب جديد - محل البتول*%0A*الاسم:* ${name}%0A*الموبايل:* ${phone}%0A*العنوان:* ${addr}%0A*الاستلام:* ${deliv}%0A*الدفع:* ${pay}%0A*الطلبات:*%0A`;
+        if(!name || !phone) return alert("أكمل البيانات");
+        
+        let msg = `*طلب جديد من محل البتول*%0A*الاسم:* ${name}%0A*الموبايل:* ${phone}%0A*الطلبات:*%0A`;
         cart.forEach((item, i) => msg += `${i+1}- ${item.name} (${item.price}ج)%0A`);
         msg += `*الإجمالي:* ${document.getElementById('total-price').innerText}`;
-
+        
         window.open(`https://wa.me/201030495245?text=${msg}`);
     }
 </script>
