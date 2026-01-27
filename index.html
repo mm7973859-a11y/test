@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AL-BATOUL Luxury Care</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --barca-blue: #001d3d;
+            --barca-red: #a50044;
+            --gold: #edbb00;
+            --light-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; background: var(--light-bg); padding-bottom: 80px;
+        }
+
+        /* الهيدر والعروض */
+        header {
+            background: var(--barca-blue); color: white;
+            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000; border-bottom: 3px solid var(--barca-red);
+        }
+
+        .offers-tab {
+            background: var(--barca-red); color: white; padding: 5px 12px;
+            border-radius: 20px; font-size: 12px; font-weight: bold; animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        /* شريط التصنيفات العلوي */
+        .category-nav {
+            display: flex; overflow-x: auto; background: white; padding: 10px; gap: 10px;
+            border-bottom: 1px solid #ddd; sticky; top: 60px; z-index: 999;
+        }
+
+        .cat-btn {
+            padding: 8px 15px; border-radius: 15px; background: #eee;
+            border: none; font-size: 13px; font-weight: bold; white-space: nowrap;
+        }
+
+        .cat-btn.active { background: var(--barca-blue); color: white; }
+
+        /* قائمة المنتجات */
+        .product-card {
+            background: white; margin: 10px; border-radius: 15px; display: flex;
+            padding: 12px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .product-img { width: 70px; height: 70px; border-radius: 10px; object-fit: cover; }
+
+        .product-info { flex: 1; padding: 0 15px; }
+        .product-info h4 { margin: 0; font-size: 15px; }
+        .product-info .price { color: var(--barca-red); font-weight: 900; font-size: 14px; }
+
+        .btn-add-fast {
+            background: var(--barca-blue); color: white; border: none;
+            width: 35px; height: 35px; border-radius: 10px; font-size: 18px;
+        }
+
+        /* سلة المشتريات الطافية */
+        .cart-bar {
+            position: fixed; bottom: 15px; left: 15px; right: 15px;
+            background: var(--barca-blue); color: white; padding: 15px 20px;
+            border-radius: 50px; display: flex; justify-content: space-between;
+            align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 1001;
+        }
+
+        /* المودالات (النماذج) */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 2000; display: none; padding: 25px; box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #ddd; background: #fdfdfd; }
+        .checkout-btn { background: #25D366; color: white; width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div onclick="checkAdmin()" style="cursor:pointer">
+        <b style="font-size: 18px;">AL-BATOUL</b>
+        <div style="font-size: 9px; color: var(--gold);">PREMIUM CARE</div>
+    </div>
+    <div class="offers-tab" onclick="alert('العروض الحالية: خصم 10% على المنظفات السائلة!')">
+        🔥 العروض
+    </div>
+</header>
+
+<div class="category-nav" id="cat-nav">
+    <button class="cat-btn active" onclick="filterItems('الكل', this)">الكل</button>
+    <button class="cat-btn" onclick="filterItems('منظفات سائلة', this)">سوائل</button>
+    <button class="cat-btn" onclick="filterItems('أدوات نظافة', this)">أدوات</button>
+    <button class="cat-btn" onclick="filterItems('ألعاب', this)">ألعاب</button>
+    <button class="cat-btn" onclick="filterItems('أدوات مدرسية', this)">مدرسة</button>
+</div>
+
+<div id="product-grid" style="margin-top: 10px;">
+    </div>
+
+<div class="cart-bar" onclick="openCheckout()">
+    <span><i class="fas fa-shopping-basket"></i> <span id="cart-count">0</span> صنف</span>
+    <span style="font-weight: bold;">طلب عبر واتساب <i class="fas fa-chevron-left"></i></span>
+</div>
+
+<div id="checkout-modal" class="modal">
+    <div onclick="closeModal('checkout-modal')" style="font-size: 20px; color: var(--barca-red); font-weight: bold;">&times; إغلاق</div>
+    <h2 style="text-align: center; color: var(--barca-blue);">إتمام الطلب</h2>
+    <div id="invoice-preview" style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 15px;"></div>
+    
+    <input type="text" id="c-name" placeholder="الاسم بالكامل">
+    <input type="tel" id="c-phone" placeholder="رقم الهاتف">
+    
+    <select id="delivery-type">
+        <option value="دليفري للمنزل">دليفري للمنزل</option>
+        <option value="استلام من المحل">استلام من المحل</option>
+    </select>
+    
+    <select id="payment-type">
+        <option value="كاش عند الاستلام">كاش عند الاستلام</option>
+        <option value="فودافون كاش">فودافون كاش</option>
+    </select>
+
+    <button class="checkout-btn" onclick="sendToWhatsApp()">
+        <i class="fab fa-whatsapp"></i> إرسال الفاتورة للواتساب
+    </button>
+</div>
+
+<div id="admin-modal" class="modal">
+    <div onclick="closeModal('admin-modal')" style="color:red;">إغلاق</div>
+    <h3>لوحة التحكم</h3>
+    <input type="text" id="p-name" placeholder="اسم المنتج">
+    <input type="number" id="p-price" placeholder="السعر">
+    <select id="p-cat">
+        <option value="منظفات سائلة">منظفات سائلة</option>
+        <option value="أدوات نظافة">أدوات نظافة</option>
+        <option value="ألعاب">ألعاب</option>
+        <option value="أدوات مدرسية">أدوات مدرسية</option>
+    </select>
+    <input type="file" accept="image/*" onchange="handleImg(this)">
+    <button class="checkout-btn" style="background: var(--barca-blue);" onclick="saveProduct()">حفظ المنتج</button>
+    <hr>
+    <div id="admin-list"></div>
+</div>
+
+<script>
+    // Firebase Setup
+    const firebaseConfig = { databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let cart = [];
+    let currentImg = "";
+    let allData = [];
+
+    // جلب المنتجات
+    db.ref('products').on('value', (snap) => {
+        const grid = document.getElementById('product-grid');
+        const adminList = document.getElementById('admin-list');
+        grid.innerHTML = ""; adminList.innerHTML = "";
+        allData = [];
+        snap.forEach(child => {
+            const p = child.val();
+            const key = child.key;
+            allData.push({...p, key});
+            
+            grid.innerHTML += `
+                <div class="product-card">
+                    <img src="${p.img || 'https://via.placeholder.com/70'}" class="product-img">
+                    <div class="product-info">
+                        <h4>${p.name}</h4>
+                        <span class="price">${p.price} ج.م</span>
+                    </div>
+                    <button class="btn-add-fast" onclick="addToCart('${p.name}', ${p.price})">+</button>
+                </div>
+            `;
+
+            adminList.innerHTML += `
+                <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
+                    <span>${p.name}</span>
+                    <button onclick="deleteProduct('${key}')" style="color:red; border:none; background:none;">حذف</button>
+                </div>
+            `;
+        });
+    });
+
+    function addToCart(name, price) {
+        cart.push({name, price});
+        document.getElementById('cart-count').innerText = cart.length;
+        alert("تمت إضافة " + name);
+    }
+
+    function openCheckout() {
+        if(cart.length === 0) return alert("السلة فارغة");
+        document.getElementById('checkout-modal').style.display = 'block';
+        let total = cart.reduce((s, i) => s + i.price, 0);
+        let itemsHtml = cart.map(i => `<div>- ${i.name} (${i.price}ج)</div>`).join('');
+        document.getElementById('invoice-preview').innerHTML = `<b>المنتجات:</b>${itemsHtml}<hr><b>الإجمالي: ${total} ج.م</b>`;
+    }
+
+    function sendToWhatsApp() {
+        const name = document.getElementById('c-name').value;
+        const phone = document.getElementById('c-phone').value;
+        const deliv = document.getElementById('delivery-type').value;
+        const pay = document.getElementById('payment-type').value;
+
+        if(!name || !phone) return alert("برجاء إكمال بياناتك");
+
+        let total = cart.reduce((s, i) => s + i.price, 0);
+        let msg = `*طلب جديد من متجر البتول*%0A`;
+        msg += `*الاسم:* ${name}%0A*الهاتف:* ${phone}%0A*طريقة الاستلام:* ${deliv}%0A*طريقة الدفع:* ${pay}%0A`;
+        msg += `--------------------------%0A*الفاتورة:*%0A`;
+        cart.forEach((i, idx) => msg += `${idx+1}- ${i.name} (${i.price}ج)%0A`);
+        msg += `--------------------------%0A*الإجمالي النهائي:* ${total} ج.م`;
+
+        window.open(`https://wa.me/201030495245?text=${msg}`);
+    }
+
+    // وظائف الإدارة
+    function checkAdmin() {
+        if(prompt("كلمة السر:") === "Batoul@Admin#2026") 
+            document.getElementById('admin-modal').style.display = 'block';
+    }
+
+    function handleImg(input) {
+        const r = new FileReader();
+        r.onload = e => currentImg = e.target.result;
+        r.readAsDataURL(input.files[0]);
+    }
+
+    function saveProduct() {
+        const name = document.getElementById('p-name').value;
+        const price = document.getElementById('p-price').value;
+        const cat = document.getElementById('p-cat').value;
+        if(name && price && currentImg) {
+            db.ref('products').push({name, price: parseInt(price), cat, img: currentImg});
+            alert("تم الحفظ!");
+            closeModal('admin-modal');
+        }
+    }
+
+    function deleteProduct(key) { if(confirm("حذف؟")) db.ref('products').child(key).remove(); }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function filterItems(cat, btn) {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const grid = document.getElementById('product-grid');
+        grid.innerHTML = "";
+        allData.forEach(p => {
+            if(cat === 'الكل' || p.cat === cat) {
+                grid.innerHTML += `
+                    <div class="product-card">
+                        <img src="${p.img || 'https://via.placeholder.com/70'}" class="product-img">
+                        <div class="product-info">
+                            <h4>${p.name}</h4>
+                            <span class="price">${p.price} ج.م</span>
+                        </div>
+                        <button class="btn-add-fast" onclick="addToCart('${p.name}', ${p.price})">+</button>
+                    </div>
+                `;
+            }
+        });
+    }
+</script>
+</body>
+</html>
