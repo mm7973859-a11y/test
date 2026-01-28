@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AL-BATOUL | البتول</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --barca-blue: #001d3d; --barca-red: #a50044; --gold: #edbb00; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 100px; }
+        
+        header { 
+            background: linear-gradient(135deg, var(--barca-blue) 0%, var(--barca-red) 100%);
+            color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000; border-bottom: 3px solid var(--gold);
+        }
+
+        .offers-badge { 
+            background: linear-gradient(to top, #ff4500, #ff8c00); 
+            color: white; padding: 6px 12px; border-radius: 15px; font-size: 11px; font-weight: bold; 
+            display: flex; align-items: center; gap: 5px; box-shadow: 0 0 15px rgba(255, 69, 0, 0.5);
+            animation: fire-glow 1.5s infinite alternate;
+        }
+        @keyframes fire-glow { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
+
+        .search-area { padding: 12px; background: white; }
+        .search-bar { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
+        
+        .category-nav { display: flex; overflow-x: auto; background: white; padding: 10px; gap: 8px; border-bottom: 1px solid #eee; scrollbar-width: none; }
+        .cat-btn { padding: 8px 16px; border-radius: 20px; background: #f0f0f0; border: none; font-size: 12px; font-weight: bold; white-space: nowrap; color: #555; }
+        .cat-btn.active { background: var(--barca-red); color: white; }
+
+        /* عرض المنتجات في عمودين */
+        #product-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px; 
+            padding: 12px; 
+        }
+
+        .product-card { 
+            background: white; border-radius: 15px; display: flex; flex-direction: column; 
+            padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center;
+            transition: 0.3s;
+        }
+
+        .product-img { 
+            width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; 
+            object-fit: cover; margin-bottom: 10px; background: #f9f9f9;
+        }
+
+        .product-card h4 { 
+            margin: 5px 0; font-size: 14px; color: var(--barca-blue); 
+            height: 38px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        }
+
+        .price-tag { color: var(--barca-red); font-weight: 800; font-size: 16px; margin: 5px 0; }
+        
+        .card-actions { 
+            display: flex; justify-content: space-between; align-items: center; 
+            width: 100%; margin-top: auto; padding-top: 8px;
+        }
+
+        /* أيقونة أعجبني */
+        .like-btn { color: #ccc; font-size: 20px; cursor: pointer; transition: 0.3s; }
+        .like-btn.liked { color: var(--barca-red); }
+
+        /* زر الإضافة + */
+        .btn-add { 
+            background: var(--barca-blue); color: white; border: none; 
+            width: 38px; height: 38px; border-radius: 10px; 
+            font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
+        .cart-bar { 
+            position: fixed; bottom: 15px; left: 15px; right: 15px; 
+            background: var(--barca-blue); color: white; padding: 18px; 
+            border-radius: 18px; display: flex; justify-content: space-between; 
+            z-index: 1001; cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; display: none; padding: 25px; box-sizing: border-box; overflow-y: auto; }
+        .modal input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 12px; border: 1px solid #ddd; font-size: 16px; }
+        .confirm-btn { background: #25D366; color: white; width: 100%; padding: 16px; border: none; border-radius: 12px; font-weight: bold; font-size: 18px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div onclick="openAdmin()"><i class="fas fa-cog"></i></div>
+    <div style="font-weight: 900; font-size: 20px;">AL-BATOUL</div>
+    <div class="offers-badge">
+        <i class="fas fa-fire"></i>
+        <span>عروض مشتعلة</span>
+    </div>
+</header>
+
+<div class="search-area">
+    <input type="text" class="search-bar" id="searchBox" placeholder="ابحث عن منتج..." oninput="searchFunc()">
+</div>
+
+<div class="category-nav">
+    <button class="cat-btn active" onclick="filterItems('الكل', this)">الكل</button>
+    <button class="cat-btn" onclick="filterItems('منظفات', this)">منظفات</button>
+    <button class="cat-btn" onclick="filterItems('أدوات منزلية', this)">أدوات منزلية</button>
+    <button class="cat-btn" onclick="filterItems('ادوات مكتبية', this)">ادوات مكتبية</button>
+    <button class="cat-btn" onclick="filterItems('لعب اطفال', this)">لعب اطفال</button>
+</div>
+
+<div id="product-grid"></div>
+
+<div class="cart-bar" id="cartBar" onclick="openCheckout()">
+    <span>🛒 (<span id="cart-count">0</span>) منتجات</span>
+    <span>عرض الطلب <i class="fas fa-arrow-left"></i></span>
+</div>
+
+<div id="checkout-modal" class="modal">
+    <div onclick="closeModal()" style="font-size: 35px; color: var(--barca-red); cursor: pointer;">×</div>
+    <h3 style="text-align: center; margin-bottom: 20px;">مراجعة طلبك</h3>
+    <div id="cart-items-preview" style="background:#f8f9fa; padding:15px; border-radius:12px; border: 1px solid #eee; margin-bottom: 20px;"></div>
+    <input type="text" id="cust-name" placeholder="اسمك الكريم">
+    <input type="tel" id="cust-phone" placeholder="رقم الموبايل للتواصل">
+    <button class="confirm-btn" onclick="sendWhatsApp()">إرسال عبر واتساب <i class="fab fa-whatsapp"></i></button>
+</div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let cart = [];
+    let allProducts = [];
+
+    db.ref('products').on('value', snap => {
+        allProducts = [];
+        snap.forEach(child => {
+            const p = child.val(); p.key = child.key;
+            allProducts.push(p);
+        });
+        display(allProducts);
+    });
+
+    function display(list) {
+        const grid = document.getElementById('product-grid');
+        grid.innerHTML = "";
+        list.forEach(p => {
+            grid.innerHTML += `
+                <div class="product-card">
+                    <img src="${p.img || ''}" class="product-img">
+                    <h4>${p.name}</h4>
+                    <div class="price-tag">${p.price} ج.م</div>
+                    <div class="card-actions">
+                        <i class="fas fa-heart like-btn" onclick="this.classList.toggle('liked')"></i>
+                        <button class="btn-add" onclick="addToCart('${p.name}', ${p.price})">+</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function addToCart(name, price) {
+        cart.push({name, price});
+        document.getElementById('cart-count').innerText = cart.length;
+    }
+
+    function openCheckout() {
+        if (cart.length === 0) return alert("سلتك خالية!");
+        let html = "";
+        let total = 0;
+        cart.forEach((item, index) => {
+            html += `<div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span>${index + 1}. ${item.name}</span>
+                        <b>${item.price} ج</b>
+                     </div>`;
+            total += item.price;
+        });
+        document.getElementById('cart-items-preview').innerHTML = html + `<hr><div style="display:flex; justify-content:space-between; font-weight:bold; font-size:18px;"><span>الإجمالي</span><span>${total} ج.م</span></div>`;
+        document.getElementById('checkout-modal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('checkout-modal').style.display = 'none'; }
+
+    function sendWhatsApp() {
+        const name = document.getElementById('cust-name').value;
+        const phone = document.getElementById('cust-phone').value;
+        if (!name || !phone) return alert("فضلاً، أكمل بياناتك");
+        let msg = `طلب جديد من: ${name}%0Aالرقم: ${phone}%0A%0Aالمنتجات:%0A`;
+        cart.forEach(item => msg += `- ${item.name} (${item.price} ج.م)%0A`);
+        window.open(`https://wa.me/201030495245?text=${msg}`);
+    }
+
+    function searchFunc() {
+        const v = document.getElementById('searchBox').value.toLowerCase();
+        display(allProducts.filter(p => p.name.toLowerCase().includes(v)));
+    }
+
+    function filterItems(cat, btn) {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        display(cat === 'الكل' ? allProducts : allProducts.filter(p => p.cat === cat));
+    }
+
+    function openAdmin() { if(prompt("كلمة السر:") === "Batoul@Admin#2026") alert("مرحباً بك!"); }
+</script>
+</body>
+</html>
