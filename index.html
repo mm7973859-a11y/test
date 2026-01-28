@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AL-BATOUL | البتول</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --barca-blue: #001d3d; --barca-red: #a50044; --gold: #edbb00; --bg: #f4f4f9; }
+        body { font-family: sans-serif; margin: 0; background: var(--bg); padding-bottom: 80px; }
+        
+        header { 
+            background: linear-gradient(135deg, var(--barca-blue) 0%, var(--barca-red) 100%);
+            color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--gold);
+        }
+
+        /* زر العروض الجانبي */
+        .side-offer-btn {
+            position: fixed; left: 0; top: 30%; background: #ff4500; color: white;
+            padding: 12px 5px; border-radius: 0 10px 10px 0; z-index: 999;
+            writing-mode: vertical-rl; text-orientation: mixed; font-weight: bold;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2); cursor: pointer;
+        }
+
+        /* البحث والأقسام */
+        .nav-area { background: white; padding: 10px 0; position: sticky; top: 55px; z-index: 998; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .search-input { width: 90%; margin: 0 5% 10px; padding: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
+        .cats { display: flex; overflow-x: auto; padding: 0 10px; gap: 8px; scrollbar-width: none; }
+        .cat-item { padding: 7px 15px; border-radius: 20px; background: #eee; border: none; font-size: 11px; white-space: nowrap; font-weight: bold; }
+        .cat-item.active { background: var(--barca-red); color: white; }
+
+        /* شبكة المنتجات */
+        #product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        .card { background: white; border-radius: 15px; padding: 10px; text-align: center; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.03); position: relative; }
+        .card img { width: 100%; aspect-ratio: 1/1; border-radius: 10px; object-fit: cover; }
+        .card h4 { font-size: 12px; margin: 8px 0; height: 30px; overflow: hidden; }
+        .price { color: var(--barca-red); font-weight: bold; font-size: 14px; margin-bottom: 8px; }
+        .add-btn { background: var(--barca-blue); color: white; border: none; width: 100%; padding: 8px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* سلة مصغرة */
+        .cart-bar { position: fixed; bottom: 15px; left: 10%; width: 80%; background: var(--barca-blue); color: white; padding: 12px 20px; border-radius: 50px; display: flex; justify-content: space-between; z-index: 1001; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 1px solid var(--gold); }
+
+        /* مودال الطلب */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--barca-blue); color: white; z-index: 2000; display: none; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        input, select { width: 100%; padding: 12px; margin: 5px 0; border-radius: 8px; border: none; }
+        .wa-btn { background: #25d366; color: white; width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; margin-top: 15px; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="width:30px"></div>
+    <div onclick="location.reload()" style="cursor:pointer; font-weight:900;">AL-BATOUL | البتول</div>
+    <a href="https://www.facebook.com/share/18JA6ji647/" target="_blank" style="color:white;"><i class="fab fa-facebook-f"></i></a>
+</header>
+
+<div class="side-offer-btn" onclick="filterItems('عروض')">🔥 عروض خاصة</div>
+
+<div class="nav-area">
+    <input type="text" class="search-input" id="search" oninput="searchFunc()" placeholder="ابحث عن منتج...">
+    <div class="cats">
+        <button class="cat-item active" onclick="filterItems('الكل', this)">الكل</button>
+        <button class="cat-item" onclick="filterItems('منظفات', this)">منظفات</button>
+        <button class="cat-item" onclick="filterItems('منزلية', this)">منزلية</button>
+        <button class="cat-item" onclick="filterItems('مكتبية', this)">مكتبية</button>
+        <button class="cat-item" onclick="filterItems('لعب', this)">لعب اطفال</button>
+        <button class="cat-item" onclick="filterItems('تجميل', this)">تجميل</button>
+    </div>
+</div>
+
+<div id="product-grid"></div>
+
+<div class="cart-bar" onclick="openCheckout()">
+    <span>🛒 السلة (<span id="count">0</span>)</span>
+    <span>طلب الشراء <i class="fas fa-chevron-left"></i></span>
+</div>
+
+<div id="modal" class="modal">
+    <span onclick="closeModal()" style="font-size:35px; color:var(--gold); cursor:pointer;">×</span>
+    <h3 style="text-align:center;">مراجعة الطلب</h3>
+    <div id="preview" style="background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;"></div>
+    
+    <div style="margin-top:20px;">
+        <input type="text" id="name" placeholder="الاسم">
+        <input type="tel" id="phone" placeholder="رقم الهاتف">
+        <select id="method">
+            <option value="دليفري">دليفري للمنزل</option>
+            <option value="من المحل">استلام من المحل</option>
+        </select>
+        <input type="text" id="address" placeholder="العنوان">
+        <button class="wa-btn" onclick="sendWA()">إرسال الطلب واتساب <i class="fab fa-whatsapp"></i></button>
+    </div>
+</div>
+
+<script>
+    // المنتجات - تم وضعها هنا لتظهر فوراً
+    const products = [
+        { name: "برسيل جيل 2.5 لتر", price: 165, cat: "منظفات", img: "https://m.media-amazon.com/images/I/61mO-pWvN2L._AC_SL1500_.jpg" },
+        { name: "اريال 4 كيلو اتوماتيك", price: 245, cat: "منظفات", img: "https://m.media-amazon.com/images/I/71YyX0B93EL._AC_SL1500_.jpg" },
+        { name: "فيري ليمون 1 لتر", price: 65, cat: "منظفات", img: "https://m.media-amazon.com/images/I/61X7yP-N7rL._AC_SL1500_.jpg" },
+        { name: "طقم توابل زجاج 3 قطع", price: 95, cat: "منزلية", img: "https://m.media-amazon.com/images/I/61M8Q6+N7rL._AC_SL1000_.jpg" },
+        { name: "منظم ثلاجة اكريليك", price: 45, cat: "منزلية", img: "https://m.media-amazon.com/images/I/61XvU4K7u+L._AC_SL1500_.jpg" },
+        { name: "زمزمية 1 لتر تريتان", price: 110, cat: "مكتبية", img: "https://m.media-amazon.com/images/I/61C6tT+p+9L._AC_SL1500_.jpg" },
+        { name: "لانش بوكس مقسم", price: 85, cat: "مكتبية", img: "https://m.media-amazon.com/images/I/51y-8XyM7yL._AC_SL1500_.jpg" },
+        { name: "مكعبات اطفال 100 قطعة", price: 140, cat: "لعب", img: "https://m.media-amazon.com/images/I/71eXm-T-j6L._AC_SL1500_.jpg" },
+        { name: "عربية سباق ريموت", price: 195, cat: "لعب", img: "https://m.media-amazon.com/images/I/61j6p+P-N7L._AC_SL1200_.jpg" },
+        { name: "كريم نيفيا مرطب", price: 55, cat: "تجميل", img: "https://m.media-amazon.com/images/I/51m-p+P-N7L._AC_SL1000_.jpg" },
+        { name: "عرض النظافة: 2 برسيل", price: 320, cat: "عروض", img: "https://images.deliveryhero.io/image/talabat/Products/6221010313101_638101416973059437.jpg" }
+    ];
+
+    let cart = {};
+
+    function display(list) {
+        const grid = document.getElementById('product-grid');
+        grid.innerHTML = list.map(p => `
+            <div class="card">
+                <img src="${p.img}">
+                <h4>${p.name}</h4>
+                <div class="price">${p.price} ج</div>
+                <button class="add-btn" onclick="addToCart('${p.name}', ${p.price})">إضافة +</button>
+                <i class="fas fa-heart" style="position:absolute; top:8px; left:8px; color:#ddd" onclick="this.style.color='red'"></i>
+            </div>
+        `).join('');
+    }
+
+    function addToCart(name, price) {
+        cart[name] = cart[name] ? { price, qty: cart[name].qty + 1 } : { price, qty: 1 };
+        let count = 0; for(let i in cart) count += cart[i].qty;
+        document.getElementById('count').innerText = count;
+    }
+
+    function openCheckout() {
+        let html = "", total = 0;
+        for(let name in cart) {
+            let sub = cart[name].price * cart[name].qty;
+            total += sub;
+            html += `<div style="display:flex; justify-content:space-between; margin:10px 0;">
+                <span>${name} (x${cart[name].qty})</span>
+                <b>${sub} ج</b>
+            </div>`;
+        }
+        if(total === 0) return alert("السلة فارغة");
+        document.getElementById('preview').innerHTML = html + `<hr><h4>الإجمالي: ${total} ج</h4>`;
+        document.getElementById('modal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+    function sendWA() {
+        const name = document.getElementById('name').value;
+        const phone = document.getElementById('phone').value;
+        if(!name || !phone) return alert("يرجى كتابة الاسم والهاتف");
+        let msg = `طلب جديد - البتول%0Aالاسم: ${name}%0Aالهاتف: ${phone}%0Aالاستلام: ${document.getElementById('method').value}%0Aالعنوان: ${document.getElementById('address').value}%0A%0Aالمنتجات:%0A`;
+        for(let n in cart) msg += `- ${n} (x${cart[n].qty})%0A`;
+        window.open(`https://wa.me/201030495245?text=${encodeURIComponent(msg)}`);
+    }
+
+    function filterItems(c, btn) {
+        if(btn) {
+            document.querySelectorAll('.cat-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        display(c === 'الكل' ? products : products.filter(p => p.cat === c || (c === 'عروض' && p.cat === 'عروض')));
+    }
+
+    function searchFunc() {
+        const v = document.getElementById('search').value.toLowerCase();
+        display(products.filter(p => p.name.toLowerCase().includes(v)));
+    }
+
+    // تشغيل العرض عند فتح الصفحة
+    display(products);
+</script>
+</body>
+</html>
