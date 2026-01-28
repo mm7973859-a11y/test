@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AL-BATOUL | البتول</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --barca-blue: #001d3d; --barca-red: #a50044; --gold: #edbb00; --bg: #f4f4f9; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: var(--bg); padding-bottom: 80px; overflow-x: hidden; }
+        
+        /* الهيدر */
+        header { 
+            background: linear-gradient(135deg, var(--barca-blue) 0%, var(--barca-red) 100%);
+            color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--gold);
+        }
+        .header-title { font-weight: 900; font-size: 18px; cursor: pointer; }
+
+        /* زر العروض الجانبي الملفت */
+        .side-offers {
+            position: fixed; left: 0; top: 30%; background: #ff4500; color: white;
+            padding: 10px 5px; border-radius: 0 10px 10px 0; z-index: 998;
+            writing-mode: vertical-rl; text-orientation: mixed; font-weight: bold;
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.6); animation: shake 2s infinite;
+            cursor: pointer; border: 1px solid var(--gold);
+        }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30% { transform: translateX(-5px); } }
+
+        /* الأقسام والبحث */
+        .nav-container { background: white; padding: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .search-bar { width: 90%; margin: 0 5%; padding: 10px; border-radius: 10px; border: 1px solid #ddd; background: #f9f9f9; outline: none; }
+        
+        .category-nav { display: flex; overflow-x: auto; padding: 10px; gap: 8px; scrollbar-width: none; }
+        .cat-btn { padding: 8px 15px; border-radius: 20px; background: #eee; border: none; font-size: 11px; font-weight: bold; white-space: nowrap; transition: 0.3s; }
+        .cat-btn.active { background: var(--barca-red); color: white; }
+
+        /* شبكة المنتجات */
+        #product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        .product-card { background: white; border-radius: 15px; padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; border: 1px solid #eee; position: relative; }
+        .product-img { width: 100%; aspect-ratio: 1/1; border-radius: 10px; object-fit: cover; }
+        .product-card h4 { font-size: 12px; margin: 8px 0 4px; height: 30px; overflow: hidden; color: #333; }
+        .price-tag { color: var(--barca-red); font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        
+        /* السلة المصغرة */
+        .cart-mini { 
+            position: fixed; bottom: 15px; left: 15px; right: 15px; 
+            background: var(--barca-blue); color: white; padding: 12px 20px; 
+            border-radius: 50px; display: flex; justify-content: space-between; align-items: center;
+            z-index: 1001; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 1px solid var(--gold);
+        }
+        .cart-count-badge { background: var(--barca-red); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+
+        /* المودال */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--barca-blue); z-index: 2000; display: none; padding: 20px; box-sizing: border-box; color: white; overflow-y: auto; }
+        .confirm-btn { background: #25d366; color: white; width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; margin-top: 15px; }
+
+        footer { background: #1a1a1a; color: white; padding: 20px; text-align: center; }
+        .fb-link { color: #1877F2; font-size: 30px; text-decoration: none; margin-top: 10px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="width:30px"></div>
+    <div class="header-title" onclick="openAdmin()">AL-BATOUL | البتول</div>
+    <a href="https://www.facebook.com/share/18JA6ji647/" target="_blank" style="color:white; font-size:20px;"><i class="fab fa-facebook"></i></a>
+</header>
+
+<div class="side-offers" onclick="filterItems('عروض', this)">
+    🔥 عروض مشتعلة
+</div>
+
+<div class="nav-container">
+    <input type="text" class="search-bar" id="searchBox" oninput="searchFunc()" placeholder="ابحث في المتجر...">
+    <div class="category-nav" id="cats">
+        <button class="cat-btn active" onclick="filterItems('الكل', this)">الكل</button>
+        <button class="cat-btn" onclick="filterItems('منظفات', this)">منظفات</button>
+        <button class="cat-btn" onclick="filterItems('أدوات منزلية', this)">أدوات منزلية</button>
+        <button class="cat-btn" onclick="filterItems('ادوات مكتبية', this)">مكتبية</button>
+        <button class="cat-btn" onclick="filterItems('لعب اطفال', this)">لعب اطفال</button>
+        <button class="cat-btn" onclick="filterItems('تجميل', this)">تجميل</button>
+    </div>
+</div>
+
+<div id="product-grid"></div>
+
+<div class="cart-mini" onclick="openCheckout()">
+    <div><i class="fas fa-shopping-cart"></i> السلة <span class="cart-count-badge" id="cart-count">0</span></div>
+    <div style="font-size: 13px; font-weight: bold;">مراجعة الطلب <i class="fas fa-chevron-left"></i></div>
+</div>
+
+<div id="checkout-modal" class="modal">
+    <span onclick="closeModal()" style="font-size:40px; color:var(--gold); cursor:pointer;">×</span>
+    <h3 style="text-align:center;">📋 مراجعة الطلب</h3>
+    <div id="cart-items-preview"></div>
+    <div style="margin-top:20px;">
+        <input type="text" id="cust-name" style="width:100%; padding:12px; margin:5px 0; border-radius:8px;" placeholder="الاسم">
+        <input type="tel" id="cust-phone" style="width:100%; padding:12px; margin:5px 0; border-radius:8px;" placeholder="رقم الهاتف">
+        <select id="receive-method" style="width:100%; padding:12px; margin:5px 0; border-radius:8px;">
+            <option value="دليفري">دليفري للمنزل</option>
+            <option value="من المحل">استلام من المحل</option>
+        </select>
+        <input type="text" id="cust-address" style="width:100%; padding:12px; margin:5px 0; border-radius:8px;" placeholder="العنوان (إذا اخترت دليفري)">
+        <button class="confirm-btn" onclick="sendWhatsApp()">إرسال الطلب (واتساب) <i class="fab fa-whatsapp"></i></button>
+    </div>
+</div>
+
+<footer>
+    <p>© 2026 متجر البتول</p>
+    <a href="https://www.facebook.com/share/18JA6ji647/" class="fb-link" target="_blank"><i class="fab fa-facebook"></i></a>
+</footer>
+
+<script>
+    // بيانات تجريبية (سيتم استبدالها ببيانات الـ Firebase الخاصة بك تلقائياً)
+    const demoProducts = [
+        { name: "برسيل جيل 3 لتر", price: 165, cat: "منظفات", img: "https://images.deliveryhero.io/image/talabat/Products/6221010313101_638101416973059437.jpg" },
+        { name: "طقم كوبيات زجاج 6 قطع", price: 85, cat: "أدوات منزلية", img: "https://m.media-amazon.com/images/I/51r+fKOnu4L._AC_UF800,800_QL80_.jpg" },
+        { name: "عروسة أطفال كبيرة", price: 120, cat: "لعب اطفال", img: "https://m.media-amazon.com/images/I/61tS-mS9WTL._AC_SL1000_.jpg" },
+        { name: "لانش بوكس مقسم", price: 45, cat: "ادوات مكتبية", img: "https://m.media-amazon.com/images/I/51y-8XyM7yL._AC_SL1500_.jpg" },
+        { name: "عرض خاص: صابون لوكس 4 قطع", price: 60, cat: "عروض", img: "https://m.media-amazon.com/images/I/61NfXpYlHkL._AC_SL1000_.jpg" }
+    ];
+
+    const firebaseConfig = { databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let cart = {}, allProducts = [];
+
+    // جلب البيانات مع وضع بيانات تجريبية إذا كان الـ Firebase فارغاً
+    db.ref('products').on('value', snap => {
+        allProducts = [];
+        if (snap.exists()) {
+            snap.forEach(child => {
+                const p = child.val(); p.key = child.key;
+                allProducts.push(p);
+            });
+        } else {
+            allProducts = demoProducts;
+        }
+        display(allProducts);
+    });
+
+    function display(list) {
+        const grid = document.getElementById('product-grid');
+        grid.innerHTML = "";
+        list.forEach(p => {
+            grid.innerHTML += `
+                <div class="product-card">
+                    <img src="${p.img || ''}" class="product-img">
+                    <h4>${p.name}</h4>
+                    <div class="price-tag">${p.price} ج.م</div>
+                    <button class="cat-btn active" style="width:100%;" onclick="addToCart('${p.name}', ${p.price})">إضافة +</button>
+                    <i class="fas fa-heart" style="position:absolute; top:10px; left:10px; color:#ddd" onclick="this.style.color='red'"></i>
+                </div>`;
+        });
+    }
+
+    function addToCart(name, price) {
+        cart[name] = cart[name] ? { price: price, qty: cart[name].qty + 1 } : { price: price, qty: 1 };
+        let count = 0; for (let id in cart) count += cart[id].qty;
+        document.getElementById('cart-count').innerText = count;
+        navigator.vibrate(30);
+    }
+
+    function openCheckout() {
+        let html = "", total = 0;
+        for (let name in cart) {
+            let sub = cart[name].price * cart[name].qty;
+            total += sub;
+            html += `<div style="display:flex; justify-content:space-between; margin:10px 0; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:5px;">
+                <span>${name} (x${cart[name].qty})</span>
+                <b>${sub} ج</b>
+            </div>`;
+        }
+        if (total === 0) return alert("السلة فارغة");
+        document.getElementById('cart-items-preview').innerHTML = html + `<h3 style="text-align:left; color:var(--gold)">الإجمالي: ${total} ج.م</h3>`;
+        document.getElementById('checkout-modal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('checkout-modal').style.display = 'none'; }
+
+    function sendWhatsApp() {
+        const name = document.getElementById('cust-name').value;
+        const phone = document.getElementById('cust-phone').value;
+        const method = document.getElementById('receive-method').value;
+        const addr = document.getElementById('cust-address').value;
+        if(!name || !phone) return alert("يرجى كتابة الاسم ورقم الهاتف");
+        
+        let msg = `طلب جديد من البتول 🔥%0Aالاسم: ${name}%0Aالهاتف: ${phone}%0Aالاستلام: ${method}%0Aالعنوان: ${addr}%0A%0Aالمنتجات:%0A`;
+        for (let id in cart) msg += `- ${id} (عدد: ${cart[id].qty})%0A`;
+        window.open(`https://wa.me/201030495245?text=${msg}`);
+    }
+
+    function searchFunc() {
+        const v = document.getElementById('searchBox').value.toLowerCase();
+        display(allProducts.filter(p => p.name.toLowerCase().includes(v)));
+    }
+
+    function filterItems(c, btn) {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        display(c === 'الكل' ? allProducts : allProducts.filter(p => p.cat === c || (c === 'عروض' && p.cat === 'عروض')));
+    }
+
+    function openAdmin() {
+        if(prompt("كلمة السر:") === "Batoul@Admin#2026") alert("مرحباً بك في الإدارة");
+    }
+</script>
+</body>
+</html>
