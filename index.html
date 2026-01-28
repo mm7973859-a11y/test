@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AL-BATOUL | البتول</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --barca-blue: #001d3d; 
+            --barca-red: #a50044; 
+            --gold: #edbb00; 
+            --bg: #f2f2f7; 
+        }
+        
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); padding-bottom: 100px; }
+        
+        header { 
+            background: linear-gradient(135deg, var(--barca-blue) 0%, var(--barca-red) 100%);
+            color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--gold);
+        }
+
+        /* إخفاء لوحة الإدمن خلف الاسم */
+        .header-title { font-weight: 900; letter-spacing: 1px; font-size: 20px; cursor: pointer; user-select: none; }
+        
+        .offers-badge { 
+            background: linear-gradient(to right, #ff4500, #ff8c00); 
+            color: white; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: bold;
+            box-shadow: 0 0 10px rgba(255, 69, 0, 0.4); animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 0.8; } 100% { opacity: 1; transform: scale(1.05); } }
+
+        .search-area { padding: 15px; background: white; }
+        .search-bar { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #efeff4; background: #f2f2f7; outline: none; }
+        
+        #product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        .product-card { 
+            background: white; border-radius: 20px; display: flex; flex-direction: column; padding: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; border: 0.5px solid #e5e5ea;
+        }
+        .product-img { width: 100%; aspect-ratio: 1 / 1; border-radius: 15px; object-fit: cover; }
+        .price-tag { color: var(--barca-red); font-weight: 700; font-size: 14px; margin: 5px 0; }
+        
+        .btn-add { background: var(--barca-blue); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
+
+        .cart-bar { 
+            position: fixed; bottom: 15px; left: 15px; right: 15px; 
+            background: var(--barca-blue); color: white; padding: 16px; 
+            border-radius: 18px; display: flex; justify-content: space-between; 
+            z-index: 1001; box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        /* نافذة الطلب المراجعة */
+        .modal { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--barca-blue); z-index: 2000; display: none; padding: 20px; box-sizing: border-box; color: white; overflow-y: auto;
+        }
+        .modal-content { background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 15px; border: 1px solid var(--barca-red); margin: 15px 0; }
+        .modal input, .modal select { 
+            width: 100%; padding: 12px; margin: 8px 0; border-radius: 10px; border: none; font-size: 15px; 
+        }
+        .confirm-btn { background: var(--barca-red); color: white; width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 17px; margin-top: 10px; }
+
+        footer { background-color: #310062; color: white; padding: 30px 20px; text-align: center; }
+        .footer-socials a { color: white; font-size: 24px; margin: 0 15px; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="width: 30px;"></div> <div class="header-title" onclick="openAdmin()">AL-BATOUL</div>
+    <div class="offers-badge"><i class="fas fa-fire"></i> عروض مشتعلة</div>
+</header>
+
+<div class="search-area">
+    <input type="text" class="search-bar" id="searchBox" oninput="searchFunc()" placeholder="ابحث عن منتج...">
+</div>
+
+<div id="product-grid"></div>
+
+<div class="cart-bar" id="cartBar" onclick="openCheckout()">
+    <span>🛒 <span id="cart-count">0</span> منتج</span>
+    <span>عرض الطلب <i class="fas fa-chevron-left"></i></span>
+</div>
+
+<div id="checkout-modal" class="modal">
+    <span onclick="closeModal()" style="font-size: 35px; color: var(--gold); cursor: pointer;">×</span>
+    <h3 style="text-align: center;">مراجعة طلب الشراء</h3>
+    
+    <div class="modal-content" id="cart-items-preview"></div>
+
+    <input type="text" id="cust-name" placeholder="الاسم بالكامل">
+    <input type="tel" id="cust-phone" placeholder="رقم الهاتف">
+    
+    <label style="display:block; margin-top:10px; font-size:14px;">طريقة الدفع:</label>
+    <select id="pay-method">
+        <option value="الدفع عند الاستلام">الدفع عند الاستلام</option>
+        <option value="فودافون كاش">فودافون كاش</option>
+    </select>
+
+    <input type="text" id="cust-address" placeholder="عنوان التوصيل بالتفصيل">
+    
+    <button class="confirm-btn" onclick="sendWhatsApp()">إرسال الطلب عبر واتساب</button>
+</div>
+
+<footer>
+    <div class="footer-socials">
+        <a href="https://www.facebook.com/share/18JA6ji647/" target="_blank"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+    </div>
+    <div style="margin-top:20px; font-size:12px; opacity:0.7;">
+        © 2026, Al-Batoul Store.
+    </div>
+</footer>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let cart = [], allProducts = [];
+
+    db.ref('products').on('value', snap => {
+        allProducts = [];
+        snap.forEach(child => {
+            const p = child.val(); p.key = child.key;
+            allProducts.push(p);
+        });
+        display(allProducts);
+    });
+
+    function display(list) {
+        const grid = document.getElementById('product-grid');
+        grid.innerHTML = "";
+        list.forEach(p => {
+            grid.innerHTML += `
+                <div class="product-card">
+                    <img src="${p.img || ''}" class="product-img">
+                    <h4 style="font-size:13px; margin:8px 0;">${p.name}</h4>
+                    <div class="price-tag">${p.price} ج.م</div>
+                    <div style="display:flex; justify-content:space-around; align-items:center;">
+                        <i class="fas fa-heart" style="color:#ddd"></i>
+                        <button class="btn-add" onclick="addToCart('${p.name}', ${p.price})">+</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function addToCart(name, price) {
+        cart.push({name, price});
+        document.getElementById('cart-count').innerText = cart.length;
+    }
+
+    function openCheckout() {
+        if (cart.length === 0) return alert("السلة فارغة");
+        let html = ""; let total = 0;
+        cart.forEach(item => {
+            html += `<div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:5px;">
+                        <span>${item.name}</span><b>${item.price} ج</b>
+                     </div>`;
+            total += item.price;
+        });
+        document.getElementById('cart-items-preview').innerHTML = html + `<hr><b>الإجمالي: ${total} ج.م</b>`;
+        document.getElementById('checkout-modal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('checkout-modal').style.display = 'none'; }
+
+    function sendWhatsApp() {
+        const name = document.getElementById('cust-name').value;
+        const phone = document.getElementById('cust-phone').value;
+        const pay = document.getElementById('pay-method').value;
+        const address = document.getElementById('cust-address').value;
+
+        if (!name || !phone || !address) return alert("يرجى ملء كافة البيانات");
+
+        let msg = `طلب شراء جديد من البتول:%0Aالاسم: ${name}%0Aالهاتف: ${phone}%0Aطريقة الدفع: ${pay}%0Aالتوصيل إلى: ${address}%0A%0Aالمنتجات:%0A`;
+        cart.forEach(item => msg += `- ${item.name} (${item.price} ج)%0A`);
+        
+        window.open(`https://wa.me/201030495245?text=${msg}`);
+    }
+
+    function searchFunc() {
+        const v = document.getElementById('searchBox').value.toLowerCase();
+        display(allProducts.filter(p => p.name.toLowerCase().includes(v)));
+    }
+
+    // فتح الإدمن عند الضغط على الاسم
+    function openAdmin() {
+        if(prompt("كلمة السر للإدارة:") === "Batoul@Admin#2026") {
+            alert("مرحباً بك في لوحة التحكم");
+            // يمكنك توجيهه لصفحة الإدمن هنا
+        }
+    }
+</script>
+</body>
+</html>
