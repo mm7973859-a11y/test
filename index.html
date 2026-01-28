@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>البتول | AL-BATOUL</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --main: #001d3d; --accent: #a50044; --gold: #edbb00; --bg: #f2f5f8; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: var(--bg); padding-bottom: 90px; }
+
+        /* Header & Nav */
+        header { 
+            background: var(--main); color: white; padding: 15px; 
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .menu-icon { font-size: 24px; color: var(--gold); cursor: pointer; }
+        .logo { font-size: 18px; font-weight: 900; }
+
+        /* Side Menu (Hamburger) */
+        .drawer { 
+            position: fixed; top: 0; right: -280px; width: 280px; height: 100%; 
+            background: white; z-index: 2000; transition: 0.4s; padding: 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        }
+        .drawer.open { right: 0; }
+        .drawer-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px; font-weight: bold; color: var(--main); cursor: pointer; }
+        .drawer-item i { color: var(--accent); }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1999; display: none; }
+
+        /* Categories with Icons */
+        .cat-scroll { display: flex; overflow-x: auto; padding: 15px; gap: 15px; background: white; scrollbar-width: none; border-bottom: 1px solid #eee; }
+        .cat-scroll::-webkit-scrollbar { display: none; }
+        .cat-card { min-width: 75px; text-align: center; }
+        .cat-icon { width: 55px; height: 55px; background: #f0f2f5; border-radius: 18px; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px; font-size: 22px; color: var(--main); transition: 0.3s; }
+        .cat-card.active .cat-icon { background: var(--accent); color: white; transform: scale(1.1); box-shadow: 0 5px 12px rgba(165,0,68,0.2); }
+        .cat-card span { font-size: 11px; font-weight: bold; color: #555; }
+
+        /* Product Grid (2 items per row) */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+        .card { background: white; border-radius: 15px; padding: 12px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column; }
+        .card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 12px; margin-bottom: 10px; }
+        .card h4 { font-size: 13px; margin: 0; height: 38px; overflow: hidden; line-height: 1.4; color: #222; }
+        .price { color: var(--accent); font-weight: 800; font-size: 16px; margin: 10px 0; }
+
+        /* Amazon Qty Selector */
+        .qty-box { display: flex; align-items: center; justify-content: space-between; background: #f0f2f5; border-radius: 10px; padding: 5px; margin-top: auto; }
+        .qty-btn { border: none; background: none; font-size: 18px; font-weight: bold; width: 30px; cursor: pointer; color: var(--main); }
+        .qty-num { font-weight: bold; font-size: 14px; }
+        .add-btn { background: var(--gold); border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; margin-top: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(237,187,0,0.2); }
+
+        /* Admin Page Style */
+        .admin-page { position: fixed; inset: 0; background: white; z-index: 3000; display: none; padding: 20px; overflow-y: auto; }
+        .admin-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 10px; }
+        .admin-btn { background: var(--main); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: bold; margin-bottom: 20px; }
+
+        /* Footer */
+        .footer { padding: 30px 20px; text-align: center; background: white; margin-top: 20px; border-top: 1px solid #eee; }
+        .social { display: flex; justify-content: center; gap: 20px; margin-top: 15px; font-size: 24px; }
+
+        /* Cart Float */
+        .cart-float { position: fixed; bottom: 15px; left: 15px; right: 15px; background: var(--main); color: white; padding: 15px 20px; border-radius: 50px; display: flex; justify-content: space-between; align-items: center; z-index: 1001; box-shadow: 0 8px 20px rgba(0,0,0,0.3); border: 1px solid var(--gold); }
+    </style>
+</head>
+<body>
+
+<div class="overlay" onclick="toggleMenu()"></div>
+<div class="drawer" id="menu">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="color:var(--accent)">البتول</h3>
+        <i class="fas fa-times" onclick="toggleMenu()" style="font-size:20px;"></i>
+    </div>
+    <div class="drawer-item" onclick="filter('الكل')"><i class="fas fa-home"></i> الرئيسية</div>
+    <div class="drawer-item" onclick="filter('عروض')"><i class="fas fa-percent"></i> عروض اليوم</div>
+    <div class="drawer-item" onclick="openAdmin()"><i class="fas fa-cog"></i> لوحة الإدارة</div>
+    <div class="drawer-item" onclick="document.getElementById('about').scrollIntoView(); toggleMenu()"><i class="fas fa-info-circle"></i> عن المتجر</div>
+</div>
+
+<header>
+    <div class="menu-icon" onclick="toggleMenu()"><i class="fas fa-bars"></i></div>
+    <div class="logo">AL-BATOUL | البتول</div>
+    <div style="width:25px"></div>
+</header>
+
+<div class="cat-scroll">
+    <div class="cat-card active" onclick="filter('الكل', this)">
+        <div class="cat-icon"><i class="fas fa-th-large"></i></div><span>الكل</span>
+    </div>
+    <div class="cat-card" onclick="filter('منظفات', this)">
+        <div class="cat-icon"><i class="fas fa-pump-soap"></i></div><span>منظفات</span>
+    </div>
+    <div class="cat-card" onclick="filter('أدوات منزلية', this)">
+        <div class="cat-icon"><i class="fas fa-utensils"></i></div><span>منزلية</span>
+    </div>
+    <div class="cat-card" onclick="filter('مكتبية', this)">
+        <div class="cat-icon"><i class="fas fa-pencil-ruler"></i></div><span>مكتبية</span>
+    </div>
+    <div class="cat-card" onclick="filter('لعب اطفال', this)">
+        <div class="cat-icon"><i class="fas fa-puzzle-piece"></i></div><span>ألعاب</span>
+    </div>
+</div>
+
+<div class="grid" id="productGrid"></div>
+
+<div class="footer" id="about">
+    <h4 style="color:var(--main)">متجر البتول</h4>
+    <p style="font-size:12px; color:#666;">نوفر لك أفضل المنتجات المنزلية بأقل الأسعار في السوق المصري.</p>
+    <div class="social">
+        <a href="https://www.facebook.com/share/18JA6ji647/" style="color:var(--main)"><i class="fab fa-facebook"></i></a>
+        <a href="https://wa.me/201030495245" style="color:#25D366"><i class="fab fa-whatsapp"></i></a>
+    </div>
+</div>
+
+<div class="cart-float" onclick="checkout()">
+    <span>🛒 السلة (<span id="count">0</span>)</span>
+    <span style="font-weight:bold; font-size:13px;">مراجعة الطلب <i class="fas fa-arrow-left"></i></span>
+</div>
+
+<div id="admin" class="admin-page">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>لوحة إدارة المنتجات</h3>
+        <button onclick="closeAdmin()" style="border:none; padding:10px; border-radius:50%; font-weight:bold;">X</button>
+    </div>
+    <div style="background:#f9f9f9; padding:15px; border-radius:15px; margin-bottom:20px;">
+        <input type="text" id="adminName" class="admin-input" placeholder="اسم المنتج">
+        <input type="number" id="adminPrice" class="admin-input" placeholder="السعر">
+        <input type="text" id="adminImg" class="admin-input" placeholder="رابط الصورة من ImgBB">
+        <select id="adminCat" class="admin-input">
+            <option value="منظفات">منظفات</option>
+            <option value="أدوات منزلية">أدوات منزلية</option>
+            <option value="مكتبية">مكتبية</option>
+            <option value="لعب اطفال">لعب اطفال</option>
+            <option value="عروض">عروض 🔥</option>
+        </select>
+        <button class="admin-btn" onclick="saveProduct()">حفظ المنتج الجديد</button>
+    </div>
+    <h4>قائمة المنتجات المضافة:</h4>
+    <div id="adminList"></div>
+</div>
+
+<script>
+    // 1. Firebase Config
+    const firebaseConfig = { databaseURL: "https://testy-89b04-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let allProducts = [], cart = {};
+
+    // 2. Fetch Data
+    db.ref('products').on('value', snap => {
+        allProducts = [];
+        const adminDiv = document.getElementById('adminList');
+        adminDiv.innerHTML = "";
+        
+        snap.forEach(child => {
+            const p = child.val(); p.key = child.key;
+            allProducts.push(p);
+            
+            // Render for Admin List
+            adminDiv.innerHTML += `
+                <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #eee; padding:10px 0;">
+                    <img src="${p.img}" width="40" height="40" style="border-radius:5px; object-fit:cover;">
+                    <span style="flex:1; font-size:12px;">${p.name}</span>
+                    <button onclick="deleteProduct('${p.key}')" style="color:red; border:none; background:none;"><i class="fas fa-trash"></i></button>
+                </div>`;
+        });
+        render(allProducts);
+    });
+
+    function render(list) {
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = list.map(p => `
+            <div class="card">
+                <img src="${p.img}">
+                <h4>${p.name}</h4>
+                <div class="price">${p.price} ج.م</div>
+                <div class="qty-box">
+                    <button class="qty-btn" onclick="changeQty('${p.key}', -1)">-</button>
+                    <span class="qty-num" id="q-${p.key}">1</span>
+                    <button class="qty-btn" onclick="changeQty('${p.key}', 1)">+</button>
+                </div>
+                <button class="add-btn" onclick="add('${p.key}')">إضافة للسلة</button>
+            </div>
+        `).join('');
+    }
+
+    // 3. Qty & Cart
+    function changeQty(key, delta) {
+        const el = document.getElementById(`q-${key}`);
+        let val = Math.max(1, parseInt(el.innerText) + delta);
+        el.innerText = val;
+    }
+
+    function add(key) {
+        const p = allProducts.find(i => i.key === key);
+        const qty = parseInt(document.getElementById(`q-${key}`).innerText);
+        cart[key] = cart[key] ? { ...p, qty: cart[key].qty + qty } : { ...p, qty: qty };
+        
+        let total = 0; for(let k in cart) total += cart[k].qty;
+        document.getElementById('count').innerText = total;
+        document.getElementById(`q-${key}`).innerText = "1";
+        navigator.vibrate(35);
+    }
+
+    // 4. Admin Actions
+    function saveProduct() {
+        const name = document.getElementById('adminName').value;
+        const price = document.getElementById('adminPrice').value;
+        const img = document.getElementById('adminImg').value;
+        const cat = document.getElementById('adminCat').value;
+        if(!name || !price || !img) return alert("يرجى ملء البيانات");
+
+        db.ref('products').push({ name, price: parseInt(price), img, cat });
+        alert("تم الحفظ بنجاح!");
+        document.getElementById('adminName').value = "";
+        document.getElementById('adminImg').value = "";
+    }
+
+    function deleteProduct(key) { if(confirm("حذف المنتج؟")) db.ref('products').child(key).remove(); }
+
+    // 5. Navigation
+    function toggleMenu() {
+        const m = document.getElementById('menu');
+        const o = document.querySelector('.overlay');
+        m.classList.toggle('open');
+        o.style.display = m.classList.contains('open') ? 'block' : 'none';
+    }
+
+    function filter(c, btn) {
+        if(btn) {
+            document.querySelectorAll('.cat-card').forEach(i => i.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        render(c === 'الكل' ? allProducts : allProducts.filter(p => p.cat === c));
+        if(document.getElementById('menu').classList.contains('open')) toggleMenu();
+    }
+
+    function openAdmin() { if(prompt("كلمة السر:") === "Batoul@2026") document.getElementById('admin').style.display='block'; }
+    function closeAdmin() { document.getElementById('admin').style.display='none'; }
+
+    function checkout() {
+        let msg = `طلب شراء جديد - البتول 🛒%0A%0A`;
+        let total = 0;
+        for(let k in cart) {
+            let sub = cart[k].price * cart[k].qty;
+            total += sub;
+            msg += `- ${cart[k].name} (x${cart[k].qty}) = ${sub}ج%0A`;
+        }
+        if(total === 0) return alert("السلة فارغة");
+        msg += `%0A💰 الإجمالي: ${total} ج.م`;
+        window.open(`https://wa.me/201030495245?text=${msg}`);
+    }
+</script>
+</body>
+</html>
