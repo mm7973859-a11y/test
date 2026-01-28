@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Al Batool Store</title>
+
+<style>
+body {font-family: Arial; margin:0; background:#eef7f9;}
+header {background:#0aa; color:white; padding:15px; text-align:center;}
+.products {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;padding:15px;}
+.card {background:white;border-radius:10px;padding:10px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.1);}
+.card img {width:100%;height:150px;object-fit:cover;border-radius:8px;}
+.price {color:green;font-weight:bold;}
+button {padding:6px 10px;border:none;border-radius:5px;cursor:pointer}
+.add{background:#0aa;color:white}
+.admin-btn{position:fixed;bottom:15px;right:15px;background:#222;color:#fff}
+
+#adminPanel{
+display:none;
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:#fff;overflow:auto;padding:20px;z-index:9999
+}
+.admin-card{background:#f2f2f2;padding:10px;margin:10px 0;border-radius:8px}
+input{width:100%;padding:6px;margin:5px 0}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Al Batool</h1>
+<p>متجر المنظفات والأدوات المنزلية</p>
+</header>
+
+<div class="products" id="products"></div>
+
+<button class="admin-btn" onclick="openLogin()">لوحة التحكم</button>
+
+<!-- لوحة الادمن -->
+<div id="adminPanel">
+<h2>لوحة تحكم الأدمن</h2>
+
+<h3>إضافة منتج</h3>
+<input type="text" id="pname" placeholder="اسم المنتج">
+<input type="number" id="pprice" placeholder="السعر">
+<input type="file" id="pimg" accept="image/*" capture="environment">
+<button onclick="addProduct()">إضافة</button>
+
+<h3>المنتجات الحالية</h3>
+<div id="adminProducts"></div>
+
+<button onclick="closeAdmin()">إغلاق</button>
+</div>
+
+<script>
+const PASSWORD = "1234";
+let products = JSON.parse(localStorage.getItem("products")) || [
+ {name:"مسحوق غسيل", price:85, img:"https://via.placeholder.com/200x150"},
+ {name:"ممسحة أرضيات", price:70, img:"https://via.placeholder.com/200x150"}
+];
+
+function saveProducts(){
+ localStorage.setItem("products", JSON.stringify(products));
+ renderProducts();
+ renderAdminProducts();
+}
+
+function renderProducts(){
+ let html="";
+ products.forEach(p=>{
+  html+=`<div class="card">
+   <img src="${p.img}">
+   <h3>${p.name}</h3>
+   <p class="price">${p.price} جنيه</p>
+   <button class="add">شراء</button>
+  </div>`;
+ });
+ document.getElementById("products").innerHTML=html;
+}
+
+function renderAdminProducts(){
+ let html="";
+ products.forEach((p,i)=>{
+  html+=`<div class="admin-card">
+   <input value="${p.name}" onchange="editName(${i},this.value)">
+   <input type="number" value="${p.price}" onchange="editPrice(${i},this.value)">
+   <button onclick="deleteProduct(${i})">حذف</button>
+  </div>`;
+ });
+ document.getElementById("adminProducts").innerHTML=html;
+}
+
+function addProduct(){
+ let name=document.getElementById("pname").value;
+ let price=document.getElementById("pprice").value;
+ let file=document.getElementById("pimg").files[0];
+ if(!name || !price || !file) return alert("اكمل البيانات");
+
+ let reader=new FileReader();
+ reader.onload=function(e){
+  products.push({name,price,img:e.target.result});
+  saveProducts();
+ };
+ reader.readAsDataURL(file);
+}
+
+function deleteProduct(i){ products.splice(i,1); saveProducts(); }
+function editName(i,v){ products[i].name=v; saveProducts(); }
+function editPrice(i,v){ products[i].price=v; saveProducts(); }
+
+function openLogin(){
+ let pass=prompt("ادخل كلمة السر");
+ if(pass===PASSWORD){
+  document.getElementById("adminPanel").style.display="block";
+  renderAdminProducts();
+ } else alert("كلمة السر غلط");
+}
+
+function closeAdmin(){
+ document.getElementById("adminPanel").style.display="none";
+}
+
+renderProducts();
+</script>
+
+</body>
+</html>
