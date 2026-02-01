@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AL-BATOUL | البتول</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+<style>
+:root { --main:#001d3d; --accent:#a50044; --gold:#edbb00; --bg:#f2f5f8;}
+body{font-family:'Segoe UI';margin:0;background:var(--bg);padding-bottom:90px}
+header{background:var(--main);color:#fff;padding:15px;display:flex;justify-content:space-between;position:sticky;top:0}
+.logo{font-weight:900;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px}
+.card{background:#fff;border-radius:12px;padding:8px;border:1px solid #eee}
+.card img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px}
+.price{color:var(--accent);font-weight:bold}
+.add-btn{background:var(--gold);border:none;width:100%;padding:8px;border-radius:6px;font-weight:bold}
+.cart-float{position:fixed;bottom:15px;left:15px;right:15px;background:var(--main);color:#fff;padding:15px;border-radius:50px;display:none;justify-content:space-between}
+.admin-page,.modal-page{position:fixed;inset:0;background:#fff;z-index:3000;display:none;padding:20px;overflow:auto}
+.admin-input{width:100%;padding:10px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px}
+</style>
+</head>
+<body>
+
+<header>
+<div></div>
+<div class="logo" onclick="openAdmin()">AL-BATOUL | البتول</div>
+<div></div>
+</header>
+
+<input type="text" placeholder="ابحث عن منتج..." class="admin-input" oninput="search(this.value)">
+
+<div class="grid" id="productGrid"></div>
+
+<div class="cart-float" id="cartBtn" onclick="openReview()">
+<span>🛒 السلة (<span id="count">0</span>)</span>
+<span>مراجعة الطلب</span>
+</div>
+
+<div id="admin" class="admin-page">
+<h3>إدارة المنتجات</h3>
+<input id="adminName" class="admin-input" placeholder="اسم المنتج">
+<input id="adminPrice" type="number" class="admin-input" placeholder="السعر">
+<input type="file" id="adminFile" class="admin-input">
+<select id="adminCat" class="admin-input">
+<option>منظفات</option><option>أدوات منزلية</option><option>عناية شخصية</option>
+</select>
+<button class="add-btn" onclick="handleSave()">حفظ المنتج</button>
+<div id="adminList"></div>
+</div>
+
+<div id="reviewModal" class="modal-page">
+<h3>مراجعة الطلب</h3>
+<div id="reviewItems"></div>
+<div id="reviewTotal" style="font-weight:bold;text-align:center;margin:15px 0"></div>
+<input id="custName" class="admin-input" placeholder="الاسم">
+<input id="custPhone" class="admin-input" placeholder="رقم الهاتف">
+<button class="add-btn" style="background:#25D366;color:#fff" onclick="sendToWA()">تأكيد عبر واتساب</button>
+</div>
+
+<script>
+const firebaseConfig={databaseURL:"https://testy-89b04-default-rtdb.firebaseio.com"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const STORE_PHONE="201030495245";
+
+let allProducts=[],cart=JSON.parse(localStorage.getItem("cart")||"{}");
+
+function updateCartUI(){
+ let c=0;for(let k in cart)c+=cart[k].qty;
+ count.innerText=c;
+ cartBtn.style.display=c?"flex":"none";
+ localStorage.setItem("cart",JSON.stringify(cart));
+}
+updateCartUI();
+
+db.ref('products').on('value',snap=>{
+ allProducts=[];
+ adminList.innerHTML="";
+ snap.forEach(ch=>{
+  const p=ch.val();p.key=ch.key;
+  allProducts.push(p);
+  adminList.innerHTML+=`<div>${p.name} <i class="fas fa-trash" style="color:red" onclick="deleteProduct('${p.key}')"></i></div>`;
+ });
+ render(allProducts);
+});
+
+function render(data){
+ productGrid.innerHTML=data.map(p=>`
+ <div class="card">
+ <img src="${p.img}">
+ <div>${p.name}</div>
+ <div class="price">${p.price} ج.م</div>
+ <button class="add-btn" onclick="addToCart('${p.key}')">إضافة</button>
+ </div>`).join('');
+}
+
+function addToCart(k){
+ const p=allProducts.find(i=>i.key===k);
+ cart[k]=cart[k]?{...p,qty:cart[k].qty+1}:{...p,qty:1};
+ updateCartUI();
+}
+
+function openReview(){
+ let h="",t=0;
+ for(let k in cart){let s=cart[k].price*cart[k].qty;t+=s;
+ h+=`<div>${cart[k].name} x${cart[k].qty} = ${s}ج</div>`;}
+ reviewItems.innerHTML=h;
+ reviewTotal.innerText="الإجمالي: "+t+" ج.م";
+ reviewModal.style.display="block";
+}
+
+function sendToWA(){
+ const n=custName.value,phone=custPhone.value;
+ if(!n||!phone) return alert("ادخل الاسم ورقم الهاتف");
+ let m=`طلب جديد من ${n} (${phone})%0A`;
+ for(let k in cart)m+=`- ${cart[k].name} x${cart[k].qty}%0A`;
+ window.open(`https://wa.me/${STORE_PHONE}?text=${m}`);
+ cart={};updateCartUI();reviewModal.style.display="none";
+}
+
+function search(v){render(allProducts.filter(p=>p.name.includes(v)))}
+
+const passHash="QmF0b3VsQDIwMjY=";
+function openAdmin(){if(btoa(prompt("كلمة السر:"))===passHash)admin.style.display="block"}
+
+function deleteProduct(k){if(confirm("حذف؟"))db.ref('products').child(k).remove()}
+
+async function handleSave(){
+ const file=adminFile.files[0],name=adminName.value,price=adminPrice.value;
+ if(!file||!name||!price) return alert("أكمل البيانات");
+ const reader=new FileReader();
+ reader.onload=e=>{
+  const img=new Image();img.src=e.target.result;
+  img.onload=()=>{
+   const canvas=document.createElement('canvas');
+   const scale=600/img.width;
+   canvas.width=600;canvas.height=img.height*scale;
+   canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+   canvas.toBlob(async b=>{
+    const fd=new FormData();fd.append('image',b);
+    const res=await fetch('https://api.imgbb.com/1/upload?key=604f37803d159f801a6b0c2a5146c873',{method:'POST',body:fd});
+    const d=await res.json();
+    if(d.success){
+     db.ref('products').push({name,price:parseInt(price),img:d.data.url,cat:adminCat.value});
+     alert("تم الحفظ");adminFile.value="";
+    }
+   },'image/jpeg',0.6);
+  }
+ };
+ reader.readAsDataURL(file);
+}
+</script>
+</body>
+</html>
